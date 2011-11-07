@@ -1,7 +1,7 @@
 {
-  "name": "TeamFM",
-  "version": "0.1.15",
-  "description": "TeamFM notifier",
+  "name": "Team.FM notifier",
+  "version": "0.1.17",
+  "description": "Team.FM notifier",
   "icons": {
     "16": "images/16.png",
     "128": "images/128.png",
@@ -9,7 +9,7 @@
   },
   "browser_action": {
     "default_icon": "images/16.png",
-    "default_title": "TeamFM"
+    "default_title": "Team.FM notifier"
   },
   "background_page": "background.html",
   "permissions": [
