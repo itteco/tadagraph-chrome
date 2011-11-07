@@ -1,7 +1,7 @@
 {
-  "name": "TeamFM",
-  "version": "0.1.15",
-  "description": "TeamFM notifier",
+  "name": "Team.FM Notifier",
+  "version": "0.1.17",
+  "description": "Get real-time desktop notifications on Team.FM projects, teams and locations activity and keep an eye on unread messages count.",
   "icons": {
     "16": "images/16.png",
     "128": "images/128.png",
@@ -9,7 +9,7 @@
   },
   "browser_action": {
     "default_icon": "images/16.png",
-    "default_title": "TeamFM"
+    "default_title": "Team.FM Notifier"
   },
   "background_page": "background.html",
   "permissions": [

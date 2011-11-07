@@ -1,1 +1,1 @@
-# TeamFM - Google Chrome Extension
+# Team.FM Notifier - Google Chrome Extension
