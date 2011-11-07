@@ -1,4 +1,5 @@
 (function() {
+  var host = "https://team.fm";
   var notification_template = '';
   
   // Load template
@@ -13,11 +14,11 @@
   function getTopicUrl(topic) {
     if (topic && topic.db) {
       if (topic.db.type == "project") {
-        return "http://tadagraph.com/#/" + topic.db.name + "/" + topic._id +"/";
+        return host + "/#/" + topic.db.name + "/" + topic._id +"/";
       } else if (topic.db.type == "team") {
-        return "http://tadagraph.com/#/+" + topic.db.name + "/" + topic._id +"/";
+        return host + "/#/+" + topic.db.name + "/" + topic._id +"/";
       } else if (topic.db.type == "location") {
-        return "http://tadagraph.com/#/-" + topic.db.name + "/" + topic._id +"/";
+        return host + "/#/-" + topic.db.name + "/" + topic._id +"/";
       } else {
         return "javascript:return false";
       }
@@ -94,7 +95,7 @@
     
     body = body.replace(/(^|\s)(@[a-z0-9-_]+)/gi, '$1<a href="#" onclick="return false;">$2</a>');
     
-    body = body.replace(/\B(#([a-z0-9-_]+))/gi, '<a href="http://tadagraph.com/#/' + doc.db.name + '/#$2">$1</a>');
+    body = body.replace(/\B(#([a-z0-9-_]+))/gi, '<a href="' + host + '/#/' + doc.db.name + '/#$2">$1</a>');
     
     return body;
   }
@@ -113,7 +114,7 @@
     return 'data:text/html;plain;charset=UTF-8,' + $.mustache(
       notification_template,
       {
-        image: 'http://tadagraph.com/api/people/' + created_by_id + '/avatar',
+        image: host + '/api/people/' + created_by_id + '/avatar',
         created_by_nickname: created_by_nickname,
         body: prepareBody(notification.body, notification.ref)
       }

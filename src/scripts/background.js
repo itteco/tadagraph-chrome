@@ -42,19 +42,25 @@ API.prototype.init = function(callback) {
 
 // Notifications API part
 API.prototype.getNotifications = function(options) {
+  var now = new Date(); 
+  var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()); 
+  var DAY_MILISECONDS = 60 * 60 * 24 * 1000; 
+  var UNREAD_ACTUALITY_PERIOD = DAY_MILISECONDS * 2; 
+  var minDate = todayStart.getTime() - UNREAD_ACTUALITY_PERIOD; 
+
   this.db.view("notifier-app/count", $.extend(true, {
     error: function() {
     }
   }, options, {
     group: true,
-    startkey: [+new Date - 6048e5],
-    endkey: [+new Date]
+    startkey: [minDate] , 
+    endkey: [now.getTime(), '\\uFFFF']
   }));  
 };
 
 API.prototype.notificationsChanges = function(callback) {  
   var changes = this.db.changes(null, {
-    filter: 'core/notifications',
+    filter: 'teamfm-core/notifications',
     include_docs: true,
     heartbeat: 10000
   });
