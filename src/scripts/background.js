@@ -3,158 +3,194 @@ API = function(CONFIG) {this.CONFIG = CONFIG;};
 
 // Basic API
 API.prototype.login = function login(callback) {
-  if (!callback) throw Error('callback is required argument');
-  
-  var that = this;
-  
-  $.ajax({
-    url: this.CONFIG.HOST + '/api/me',
-    success: function(data) {
-      if (data) {
-        callback(data);
-        that.online = true;
-      } else {
-        retry();
-        
-      }
-    },
-    error: retry
-  });
-  
-  function retry() {
-    setTimeout(function() {
-      that.login(callback);
-    }, that.CONFIG.LOGIN_TIMEOUT);
-    that.online = false;
-  }
+    if (!callback) throw Error('callback is required argument');
+    
+    var that = this;
+    
+    $.ajax({
+        url: this.CONFIG.HOST + '/api/me',
+        success: function(data) {
+            if (data) {
+                callback(data);
+                that.online = true;
+            } else {
+                retry();
+                
+            }
+        },
+        error: retry
+    });
+    
+    function retry() {
+        setTimeout(function() {
+            that.login(callback);
+        }, that.CONFIG.LOGIN_TIMEOUT);
+        that.online = false;
+    }
 };
 
 API.prototype.init = function(callback) {
-  var that = this;
-  this.login(function(username) {
-    var db = $.couch.db(username, {type: "user", 
-                        urlPrefix: that.CONFIG.HOST + "/api/people",
-                        urlSuffix: "couchdb"});
-    that.db = db;  
-    callback(db);
-  });
+    var that = this;
+    this.login(function(username) {
+        callback();
+    });
 };
 
 // Notifications API part
-API.prototype.getNotifications = function(options) {
-  var now = new Date(); 
-  var todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()); 
-  var DAY_MILISECONDS = 60 * 60 * 24 * 1000; 
-  var UNREAD_ACTUALITY_PERIOD = DAY_MILISECONDS * 2; 
-  var minDate = todayStart.getTime() - UNREAD_ACTUALITY_PERIOD; 
-
-  this.db.view("notifier-app/count", $.extend(true, {
-    error: function() {
-    }
-  }, options, {
-    group: true,
-    startkey: [minDate] , 
-    endkey: [now.getTime(), '\\uFFFF']
-  }));  
+API.prototype.getUnreadMessagesCount = function(callback) {
+    $.ajax({
+        url: this.CONFIG.HOST + '/api/unread?scope=total_count',
+        success: function(data) {
+            callback(data.result);
+        }
+    });
 };
 
-API.prototype.notificationsChanges = function(callback) {  
-  var changes = this.db.changes(null, {
-    filter: 'teamfm-core/notifications',
-    include_docs: true,
-    heartbeat: 10000
-  });
-  
-  changes.onChange(function(response) {
-    response.results.forEach(function(result) {
-      callback(result.doc);
-    });
-  });
-  
-  return changes;
+API.prototype.notificationsChanges = function(callback) {
+    var key;
+
+    var request = function(method, url, options, callback) {
+        if (typeof options === 'function') {
+            callback = options;
+            options = null;
+        }
+
+        options = options || {};
+
+        var contentType = options.contentType;
+        var content = options.content;
+        if (typeof content === 'object') {
+            content = JSON.stringify(content);
+            contentType = contentType || "application/json";
+        }
+
+        var dataType = options.dataType || 'json';
+
+        $.ajax({
+            type: method,
+            url: url,
+            dataType: dataType,
+            contentType: contentType,
+            data: content,
+            success: function(resp, status, req) {
+                if (req.status == 204) {
+                    callback && callback(undefined);
+
+                } else {
+                    if (req.status == 200 || req.status == 201) {
+                        callback && callback(undefined, resp);
+
+                    } else {
+                        callback && callback(resp);
+                    }
+                }
+            },
+            error: function(req, text, reason) {
+                callback({error: text, reason: reason});
+            }
+    
+        });
+    };
+
+    function listenChanges(key) {
+        request('GET', this.CONFIG.HOST + '/api/changes?feed=longpoll' + (key? '&key=' + key: ''), function(error, data) {
+            if (error) {
+                setTimeout(listenChanges, 2000, key);
+
+            } else {
+                key = data.key;
+
+                var docs = data.results;
+                if (docs.length > 0) {
+                    docs.forEach(callback);
+                }
+
+                listenChanges(key);
+            }
+        });
+    }
+
+    listenChanges();
 };
 
 // Extension part
 (function() {
-  var api = new API(CONFIG),
-      bouncingIcon = $.bouncingIcon();
+    var api = new API(CONFIG),
+            bouncingIcon = $.bouncingIcon();
 
-  var TRIM_META_PATTERN_START = /^(\[[^\[]+\]|@[\w\d-_]+|#[\w\d-_]+|\s)+/gi,
-      TRIM_META_PATTERN_END = /(\[[^\[]+\]|@[\w\d-_]+|#[\w\d-_]+|\s)+$/gi,
-      tagsList = 'new inprogress finished delivered cancelled'.split(' ');
+    var refreshCountTimeout;
 
-  function trimMeta(body) {
-    return body && body.replace(TRIM_META_PATTERN_START, "").replace(TRIM_META_PATTERN_END, "");
-  }
+    var TRIM_META_PATTERN_START = /^(\[[^\[]+\]|@[\w\d-_]+|#[\w\d-_]+|\s)+/gi,
+            TRIM_META_PATTERN_END = /(\[[^\[]+\]|@[\w\d-_]+|#[\w\d-_]+|\s)+$/gi,
+            tagsList = 'new inprogress finished delivered cancelled'.split(' ');
 
-  api.init(function() {
-    function refreshCount() {
-      api.getNotifications({
-        success: function(response) {
-          setBadgeCount(response.rows.reduce(function(total, row){
-            return total +
-                ((row.key[1] == 'projects' || row.key[1] == 'teams' ||
-                  row.key[1] == 'locations') ?
-                                (parseInt(row.value) || 0)
-                                :
-                                0);
-          }, 0));
+    function trimMeta(body) {
+        return body && body.replace(TRIM_META_PATTERN_START, "").replace(TRIM_META_PATTERN_END, "");
+    }
+
+    api.init(function() {
+        
+        function refreshCount() {
+            clearTimeout(refreshCountTimeout);
+
+            function doRequest() {
+                api.getUnreadMessagesCount(function(count) {
+                    setBadgeCount(count);
+                });
+            }
+
+            refreshCountTimeout = setTimeout(doRequest, 1000);
         }
-      });
-    }
-    
-    api.notificationsChanges(function(notification) {
-      refreshCount();
-      
-      // Do not show notification when marking as viewed
-      if (!notification || notification.viewed_at) return;
-      if (!notification.ref) return;
+        
+        api.notificationsChanges(function(doc) {
+            refreshCount();
 
-      if (notification.ref.tags &&
-          tagsList.indexOf(notification.ref.tags[0]) != -1 &&
-          !trimMeta(notification.ref.body)) {
-        return;
-      }
-
-      $.notification(notification);
+            if (doc.type == "status") {
+                if (doc.tags
+                    && tagsList.indexOf(doc.tags[0]) != -1
+                    && !trimMeta(doc.body)) {
+                    return;
+                }
+                $.notification(doc);
+            }
+        });
+        alert('privet');
+        refreshCount();
+        
     });
     
-    refreshCount();
-    
-  });
-  
-  function setBadgeCount(count) {
-    // Do not bounce if number wasn't changed
-    if (count == setBadgeCount.oldCount) return;
-    
-    setBadgeCount.oldCount = count;
-    
-    if (count == parseInt(count)) {
-      chrome.browserAction.setBadgeBackgroundColor({
-        color: [167, 203, 2, 255]
-      });
-      
-      chrome.browserAction.setBadgeText({
-        text: (count || 0).toString()
-      });
-    } else {
-      chrome.browserAction.setBadgeBackgroundColor({
-        color: [207, 70, 45, 255]
-      });      
-      chrome.browserAction.setBadgeText({
-        text: '...'
-      });
+    function setBadgeCount(count) {
+        // Do not bounce if number wasn't changed
+        if (count == setBadgeCount.oldCount) return;
+        
+        setBadgeCount.oldCount = count;
+        
+        if (count == parseInt(count)) {
+            chrome.browserAction.setBadgeBackgroundColor({
+                color: [167, 203, 2, 255]
+            });
+            
+            chrome.browserAction.setBadgeText({
+                text: (count || 0).toString()
+            });
+        } else {
+            chrome.browserAction.setBadgeBackgroundColor({
+                color: [207, 70, 45, 255]
+            });            
+            chrome.browserAction.setBadgeText({
+                text: '...'
+            });
+        }
+        
+        bouncingIcon.bounce();
     }
     
-    bouncingIcon.bounce();
-  }
-  
-  setBadgeCount('offline');
-  
-  // Open tadagraph window on click
-  chrome.browserAction.onClicked.addListener(function() {
-    chrome.tabs.create({
-      url: CONFIG.HOST
+    setBadgeCount('offline');
+    
+    // Open tadagraph window on click
+    chrome.browserAction.onClicked.addListener(function() {
+        chrome.tabs.create({
+            url: CONFIG.HOST
+        });
     });
-  });
 })();
