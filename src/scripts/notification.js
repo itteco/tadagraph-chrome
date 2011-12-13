@@ -1,5 +1,5 @@
 (function() {
-  var host = "https://team.fm";
+  var host = CONFIG.HOST;
   var notification_template = '';
   
   // Load template
@@ -100,15 +100,15 @@
     return body;
   }
   
-  function render(notification) {
-    if (!notification.created_by) return;
+  function render(doc) {
+    if (!doc.created_by) return;
     
-    if (notification.created_by.id && notification.created_by.nickname) {
-      var created_by_id = notification.created_by.id,
-          created_by_nickname = notification.created_by.nickname;
+    if (doc.created_by.id && doc.created_by.nickname) {
+      var created_by_id = doc.created_by.id,
+          created_by_nickname = doc.created_by.nickname;
     } else {
-      var created_by_id = notification.created_by,
-          created_by_nickname = notification.created_by;
+      var created_by_id = doc.created_by,
+          created_by_nickname = doc.created_by;
     };
 
     return 'data:text/html;plain;charset=UTF-8,' + $.mustache(
@@ -116,7 +116,7 @@
       {
         image: host + '/api/people/' + created_by_id + '/avatar',
         created_by_nickname: created_by_nickname,
-        body: prepareBody(notification.body, notification.ref)
+        body: prepareBody(doc.body, doc)
       }
     );
   }
@@ -146,11 +146,9 @@
         id: 'u1203',
         nickname: 'fedor'
       },
-      ref: {
-        db: {
-          name: 'cosmos',
-          type: 'project'
-        }
+      db: {
+        name: 'cosmos',
+        type: 'project'
       },
       body: [
         'hahahaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaabb',

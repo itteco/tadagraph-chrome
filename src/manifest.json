@@ -1,6 +1,6 @@
 {
   "name": "Team.FM Notifier",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "description": "Get real-time desktop notifications on Team.FM projects, teams and locations activity and keep an eye on unread messages count.",
   "icons": {
     "16": "images/16.png",
