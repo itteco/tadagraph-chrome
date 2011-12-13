@@ -32,7 +32,7 @@ API.prototype.login = function login(callback) {
 API.prototype.init = function(callback) {
     var that = this;
     this.login(function(username) {
-        callback();
+        callback(username);
     });
 };
 
@@ -128,7 +128,7 @@ API.prototype.notificationsChanges = function(callback) {
         return body && body.replace(TRIM_META_PATTERN_START, "").replace(TRIM_META_PATTERN_END, "");
     }
 
-    api.init(function() {
+    api.init(function(userId) {
         
         function refreshCount() {
             clearTimeout(refreshCountTimeout);
@@ -145,7 +145,10 @@ API.prototype.notificationsChanges = function(callback) {
         api.notificationsChanges(function(doc) {
             refreshCount();
 
-            if (doc.type == "status") {
+            if (doc.created_by && doc.type == "status") {
+                if (userId == doc.created_by.id)
+                    return;
+
                 if (doc.tags
                     && tagsList.indexOf(doc.tags[0]) != -1
                     && !trimMeta(doc.body)) {
@@ -154,7 +157,7 @@ API.prototype.notificationsChanges = function(callback) {
                 $.notification(doc);
             }
         });
-        alert('privet');
+
         refreshCount();
         
     });
