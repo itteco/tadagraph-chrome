@@ -143,6 +143,15 @@ API.prototype.notificationsChanges = function(callback) {
         }
         
         api.notificationsChanges(function(doc) {
+            if (!doc._rev)
+                return;
+
+            var rev = doc._rev.split('-')[0];
+            if (rev != "1") {
+                // Skip edited messages.
+                return;
+            }
+
             refreshCount();
 
             if (doc.created_by && doc.type == "status") {
